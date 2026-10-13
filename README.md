@@ -11,6 +11,8 @@ Python scripts for enterprise storage operations — S3-compatible object storag
 | `ontap_snapshot_audit.py` | ONTAP snapshot compliance — retention, age, space |
 | `fc_zoning_audit.py` | Brocade/Cisco FC switch zoning audit via SSH |
 | `capacity_forecast.py` | Storage capacity trending with simple linear forecast |
+| `infinidat_infinibox_report.py` | INFINIDAT InfiniBox volume/capacity via REST API |
+| `pure_flasharray_report.py` | Pure Storage FlashArray volume/capacity via Purity REST |
 
 ## Setup
 
