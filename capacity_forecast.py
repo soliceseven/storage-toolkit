@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import csv
+import math
 import sys
 from datetime import datetime, timedelta
 
@@ -21,6 +22,11 @@ def main():
     p.add_argument("--capacity-gb", type=float, required=True)
     p.add_argument("--warn-pct", type=float, default=85)
     args = p.parse_args()
+
+    if not math.isfinite(args.capacity_gb) or args.capacity_gb <= 0:
+        p.error("--capacity-gb must be a finite positive number")
+    if not math.isfinite(args.warn_pct) or not 0 <= args.warn_pct <= 100:
+        p.error("--warn-pct must be between 0 and 100")
 
     samples = []
     with open(args.input) as f:
@@ -43,7 +49,9 @@ def main():
 
     latest_date, latest_used = samples[-1]
     pct_now = latest_used / args.capacity_gb * 100
-    print(f"Latest: {latest_date} — {latest_used:,.0f} GB ({pct_now:.1f}% of {args.capacity_gb:,.0f} GB)")
+    print(
+        f"Latest: {latest_date} — {latest_used:,.0f} GB ({pct_now:.1f}% of {args.capacity_gb:,.0f} GB)"
+    )
     print(f"Growth rate: {rate:,.1f} GB/day")
 
     if rate <= 0:
@@ -54,10 +62,14 @@ def main():
     days_to_warn = max(0, (warn_gb - latest_used) / rate)
     days_to_full = max(0, (args.capacity_gb - latest_used) / rate)
 
-    print(f"\nHits {args.warn_pct:.0f}% ({warn_gb:,.0f} GB) in ~{days_to_warn:.0f} days "
-          f"({(latest_date + timedelta(days=days_to_warn)).isoformat()})")
-    print(f"Hits 100% in ~{days_to_full:.0f} days "
-          f"({(latest_date + timedelta(days=days_to_full)).isoformat()})")
+    print(
+        f"\nHits {args.warn_pct:.0f}% ({warn_gb:,.0f} GB) in ~{days_to_warn:.0f} days "
+        f"({(latest_date + timedelta(days=days_to_warn)).isoformat()})"
+    )
+    print(
+        f"Hits 100% in ~{days_to_full:.0f} days "
+        f"({(latest_date + timedelta(days=days_to_full)).isoformat()})"
+    )
 
 
 if __name__ == "__main__":

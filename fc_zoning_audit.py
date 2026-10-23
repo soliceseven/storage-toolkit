@@ -26,7 +26,8 @@ except ImportError:
 
 def ssh_run(host, user, password, command):
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
     client.connect(host, username=user, password=password, timeout=15)
     _, stdout, _ = client.exec_command(command)
     out = stdout.read().decode(errors="replace")
@@ -76,8 +77,7 @@ def audit(zones):
     # (host HBAs) in the same zone is a zoning best-practice violation
     multi_init = []
     for z, members in zones.items():
-        initiators = [m for m in members
-                      if re.match(r"^(10|20):00", m, re.IGNORECASE)]
+        initiators = [m for m in members if re.match(r"^(10|20):00", m, re.IGNORECASE)]
         if len(initiators) > 1:
             multi_init.append((z, len(initiators)))
     if multi_init:

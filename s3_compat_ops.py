@@ -11,10 +11,12 @@ Usage:
 """
 
 import argparse
-import boto3
 import os
 import sys
+
+import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 
 def get_client(profile, endpoint, region="us-east-1"):
@@ -38,7 +40,7 @@ def action_list(s3):
                     count += 1
                     size += obj["Size"]
             total_objects += count
-            print(f"  {name:40s} {count:>8,} objects  {size/1e9:>10.2f} GB")
+            print(f"  {name:40s} {count:>8,} objects  {size / 1e9:>10.2f} GB")
         except Exception as e:
             print(f"  {name:40s} error: {e}")
     print(f"\n{len(buckets)} buckets, {total_objects:,} total objects")
@@ -47,12 +49,24 @@ def action_list(s3):
 def action_audit(s3, bucket):
     print(f"Auditing s3://{bucket}")
     issues = []
+    unknown = []
     try:
         s3.get_bucket_encryption(Bucket=bucket)
         print("  encryption: ENABLED")
-    except Exception:
-        print("  encryption: DISABLED")
-        issues.append("no-encryption")
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code in {
+            "ServerSideEncryptionConfigurationNotFoundError",
+            "NoSuchEncryptionConfiguration",
+        }:
+            print("  encryption: DISABLED")
+            issues.append("no-encryption")
+        else:
+            print(f"  encryption: unknown ({code or 'request failed'})")
+            unknown.append("encryption")
+    except Exception as e:
+        print(f"  encryption: unknown ({e})")
+        unknown.append("encryption")
     try:
         v = s3.get_bucket_versioning(Bucket=bucket).get("Status", "Suspended")
         print(f"  versioning: {v}")
@@ -60,15 +74,30 @@ def action_audit(s3, bucket):
             issues.append("versioning-off")
     except Exception as e:
         print(f"  versioning: unknown ({e})")
+        unknown.append("versioning")
     try:
         s3.get_bucket_lifecycle_configuration(Bucket=bucket)
         print("  lifecycle: CONFIGURED")
-    except Exception:
-        print("  lifecycle: NONE")
-        issues.append("no-lifecycle")
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code == "NoSuchLifecycleConfiguration":
+            print("  lifecycle: NONE")
+            issues.append("no-lifecycle")
+        else:
+            print(f"  lifecycle: unknown ({code or 'request failed'})")
+            unknown.append("lifecycle")
+    except Exception as e:
+        print(f"  lifecycle: unknown ({e})")
+        unknown.append("lifecycle")
     if issues:
         print(f"\nFindings: {', '.join(issues)}")
-    else:
+    if unknown:
+        label = ", ".join(unknown)
+        if not issues:
+            print(f"\nAudit incomplete; unknown checks: {label}")
+        else:
+            print(f"Unknown checks: {label}")
+    elif not issues:
         print("\nNo findings.")
 
 
