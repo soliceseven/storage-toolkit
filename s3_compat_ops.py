@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-S3-Compatible Storage Ops — list, upload, and audit buckets on any S3 API endpoint.
+List, upload, and audit buckets on any S3-compatible API endpoint.
 
 Works against: IBM Cloud Object Storage (Cleversafe), Cloudian HyperStore,
 AWS S3, MinIO, Wasabi, and any S3-compatible target.

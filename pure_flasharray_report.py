@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Pure Storage FlashArray Report — volume inventory and array capacity via REST.
+Report Pure Storage FlashArray volume inventory and array capacity through the REST API.
 
 Uses the Purity REST API v2 (https://<array>/api/2.x/).
-Auth: API token -> access token.
+Exchange an API token for an access token.
 
 Usage:
     python pure_flasharray_report.py --array ARRAY [--token-env PURE_API_TOKEN]
@@ -84,7 +84,7 @@ def main():
 
     fa = FlashArray(args.array, api_token)
     try:
-        # Array capacity
+        # Report array capacity.
         arrays = fa.get("/arrays", {"space": "true"})["items"]
         print("Array capacity:")
         for a in arrays:
@@ -98,7 +98,7 @@ def main():
                 f"{pct:.1f}% used, {drr:.1f}:1 data reduction"
             )
 
-        # Volumes
+        # Report volumes.
         vols = fa.get("/volumes", {"space": "true"})["items"]
         rows = []
         for v in vols:
@@ -121,7 +121,7 @@ def main():
 
         print(f"\nWrote {args.output}: {len(rows)} volumes")
 
-        # Protection groups
+        # Report protection groups.
         pgs = fa.get("/protection-groups")["items"]
         print(f"{len(pgs)} protection groups configured")
     finally:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ONTAP Snapshot Audit — check snapshot retention, age, and space consumption.
+Report ONTAP snapshot age and space consumption.
 
 Usage:
     python ontap_snapshot_audit.py --cluster CLUSTER [--password-env ONTAP_PASSWORD]

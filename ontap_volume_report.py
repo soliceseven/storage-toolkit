@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NetApp ONTAP Volume Report — inventory via the ONTAP REST API.
+Report NetApp ONTAP volume inventory through the REST API.
 
 Usage:
     python ontap_volume_report.py --cluster CLUSTER --user USER [--password-env ONTAP_PASSWORD]

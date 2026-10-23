@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-INFINIDAT InfiniBox Report — volume inventory and capacity via REST API.
+Report INFINIDAT InfiniBox volume inventory and capacity through the REST API.
 
 Uses the InfiniBox REST API (https://<box>/api/rest/).
-Auth: username/password -> session token.
+Authenticate with a username and password to obtain a session token.
 
 Usage:
     python infinidat_infinibox_report.py --host BOX [--password-env INFINIDAT_PASSWORD]

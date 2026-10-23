@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FC Switch Zoning Audit — check Brocade/Cisco FC switch zoning via SSH.
+Check Brocade and Cisco FC switch zoning over SSH.
 
 Connects over SSH, runs zoneshow (Brocade) or show zoneset (Cisco MDS),
 and reports on zone hygiene: empty zones, single-initiator violations, etc.
@@ -73,8 +73,8 @@ def audit(zones):
         for z in empty[:10]:
             print(f"  {z}")
 
-    # Single-initiator check: more than one pWWN starting with 10:00 or 20:00
-    # (host HBAs) in the same zone is a zoning best-practice violation
+    # Flag zones with multiple pWWNs starting with 10:00 or 20:00 (host HBAs),
+    # which violates the single-initiator zoning best practice.
     multi_init = []
     for z, members in zones.items():
         initiators = [m for m in members if re.match(r"^(10|20):00", m, re.IGNORECASE)]

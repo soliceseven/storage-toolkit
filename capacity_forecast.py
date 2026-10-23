@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Capacity Forecast — simple linear trending for storage consumption.
+Project storage capacity from CSV samples using a simple linear trend.
 
 Reads a CSV of (date, used_gb) samples and projects when capacity runs out.
 
@@ -42,7 +42,7 @@ def main():
         print("Need at least 2 samples", file=sys.stderr)
         sys.exit(1)
 
-    # Linear fit: GB per day
+    # Calculate the linear rate in GB per day.
     (d0, u0), (d1, u1) = samples[0], samples[-1]
     days = (d1 - d0).days or 1
     rate = (u1 - u0) / days
