@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ONTAP Snapshot Audit — check snapshot retention, age, and space consumption.
+Report ONTAP snapshot age and space consumption.
 
 Usage:
     python ontap_snapshot_audit.py --cluster CLUSTER [--password-env ONTAP_PASSWORD]
@@ -18,17 +18,15 @@ except ImportError:
     print("pip install requests", file=sys.stderr)
     sys.exit(1)
 
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 
 def main():
     p = argparse.ArgumentParser(description="NetApp ONTAP snapshot audit")
     p.add_argument("--cluster", default=os.environ.get("ONTAP_CLUSTER"))
     p.add_argument("--user", default=os.environ.get("ONTAP_USER", "admin"))
     p.add_argument("--password-env", default="ONTAP_PASSWORD")
-    p.add_argument("--max-age-days", type=int, default=30,
-                   help="Flag snapshots older than this")
+    p.add_argument(
+        "--max-age-days", type=int, default=30, help="Flag snapshots older than this"
+    )
     args = p.parse_args()
 
     if not args.cluster:
@@ -42,9 +40,13 @@ def main():
     base = f"https://{args.cluster}/api"
     auth = HTTPBasicAuth(args.user, password)
 
-    r = requests.get(base + "/storage/volumes/snapshots",
-                     auth=auth, verify=False, timeout=30,
-                     params={"fields": "name,volume.name,svm.name,create_time,space"})
+    r = requests.get(
+        base + "/storage/volumes/snapshots",
+        auth=auth,
+        verify=True,
+        timeout=30,
+        params={"fields": "name,volume.name,svm.name,create_time,space"},
+    )
     r.raise_for_status()
     snaps = r.json().get("records", [])
 
@@ -60,11 +62,16 @@ def main():
         space = (s.get("space") or {}).get("total", 0) or 0
         total_space += space
         if age_days > args.max_age_days:
-            stale.append((s.get("svm", {}).get("name", ""),
-                          (s.get("volume") or {}).get("name", ""),
-                          s.get("name", ""), age_days))
+            stale.append(
+                (
+                    s.get("svm", {}).get("name", ""),
+                    (s.get("volume") or {}).get("name", ""),
+                    s.get("name", ""),
+                    age_days,
+                )
+            )
 
-    print(f"{len(snaps)} snapshots, {total_space/1e9:.1f} GB total")
+    print(f"{len(snaps)} snapshots, {total_space / 1e9:.1f} GB total")
     print(f"{len(stale)} older than {args.max_age_days} days:")
     for svm, vol, name, age in sorted(stale, key=lambda x: x[3], reverse=True)[:20]:
         print(f"  {svm}/{vol}/{name}: {age}d old")

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Pure Storage FlashArray Report — volume inventory and array capacity via REST.
+Report Pure Storage FlashArray volume inventory and array capacity through the REST API.
 
 Uses the Purity REST API v2 (https://<array>/api/2.x/).
-Auth: API token -> access token.
+Exchange an API token for an access token.
 
 Usage:
     python pure_flasharray_report.py --array ARRAY [--token-env PURE_API_TOKEN]
@@ -24,29 +24,45 @@ except ImportError:
     print("pip install requests", file=sys.stderr)
     sys.exit(1)
 
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+def csv_safe(value):
+    if isinstance(value, str) and (
+        value[:1] in {"=", "+", "-", "@", "\t", "\r", "\n"}
+        or value.lstrip(" \t\r\n")[:1] in {"=", "+", "-", "@"}
+    ):
+        return "'" + value
+    return value
 
 
 class FlashArray:
     def __init__(self, array, api_token, api_version="2.30"):
         self.base = f"https://{array}/api/{api_version}"
-        r = requests.post(f"{self.base}/login", json={"api_token": api_token},
-                          verify=False, timeout=30)
+        r = requests.post(
+            f"{self.base}/login",
+            json={"api_token": api_token},
+            verify=True,
+            timeout=30,
+        )
         r.raise_for_status()
         self.token = r.json()["access_token"]
         self.headers = {"x-auth-token": self.token}
 
     def get(self, path, params=None):
-        r = requests.get(self.base + path, headers=self.headers,
-                         params=params or {}, verify=False, timeout=30)
+        r = requests.get(
+            self.base + path,
+            headers=self.headers,
+            params=params or {},
+            verify=True,
+            timeout=30,
+        )
         r.raise_for_status()
         return r.json()
 
     def logout(self):
         try:
-            requests.post(f"{self.base}/logout", headers=self.headers,
-                          verify=False, timeout=10)
+            requests.post(
+                f"{self.base}/logout", headers=self.headers, verify=True, timeout=10
+            )
         except Exception:
             pass
 
@@ -68,7 +84,7 @@ def main():
 
     fa = FlashArray(args.array, api_token)
     try:
-        # Array capacity
+        # Report array capacity.
         arrays = fa.get("/arrays", {"space": "true"})["items"]
         print("Array capacity:")
         for a in arrays:
@@ -76,23 +92,27 @@ def main():
             total = sp.get("total_physical", 0) or 0
             used = sp.get("total_used", 0) or 0
             drr = sp.get("data_reduction", 0) or 0
-            pct = (used/total*100) if total else 0
-            print(f"  {a.get('name')}: {total/1e12:.1f}TB total, "
-                  f"{pct:.1f}% used, {drr:.1f}:1 data reduction")
+            pct = (used / total * 100) if total else 0
+            print(
+                f"  {a.get('name')}: {total / 1e12:.1f}TB total, "
+                f"{pct:.1f}% used, {drr:.1f}:1 data reduction"
+            )
 
-        # Volumes
+        # Report volumes.
         vols = fa.get("/volumes", {"space": "true"})["items"]
         rows = []
         for v in vols:
             sp = v.get("space", {})
             size = v.get("provisioned", 0) or 0
-            used = (sp.get("total_used", 0) or 0)
-            rows.append({
-                "volume": v.get("name", ""),
-                "size_gb": f"{size/1e9:.1f}",
-                "used_gb": f"{used/1e9:.1f}",
-                "serial": v.get("serial", ""),
-            })
+            used = sp.get("total_used", 0) or 0
+            rows.append(
+                {
+                    "volume": csv_safe(v.get("name", "")),
+                    "size_gb": f"{size / 1e9:.1f}",
+                    "used_gb": f"{used / 1e9:.1f}",
+                    "serial": csv_safe(v.get("serial", "")),
+                }
+            )
 
         with open(args.output, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=["volume", "size_gb", "used_gb", "serial"])
@@ -101,7 +121,7 @@ def main():
 
         print(f"\nWrote {args.output}: {len(rows)} volumes")
 
-        # Protection groups
+        # Report protection groups.
         pgs = fa.get("/protection-groups")["items"]
         print(f"{len(pgs)} protection groups configured")
     finally:

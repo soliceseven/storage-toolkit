@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NetApp ONTAP Volume Report — inventory via the ONTAP REST API.
+Report NetApp ONTAP volume inventory through the REST API.
 
 Usage:
     python ontap_volume_report.py --cluster CLUSTER --user USER [--password-env ONTAP_PASSWORD]
@@ -19,9 +19,14 @@ except ImportError:
     print("pip install requests", file=sys.stderr)
     sys.exit(1)
 
-# Suppress self-signed cert warnings (lab/cluster certs are commonly self-signed)
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+def csv_safe(value):
+    if isinstance(value, str) and (
+        value[:1] in {"=", "+", "-", "@", "\t", "\r", "\n"}
+        or value.lstrip(" \t\r\n")[:1] in {"=", "+", "-", "@"}
+    ):
+        return "'" + value
+    return value
 
 
 class Ontap:
@@ -30,8 +35,13 @@ class Ontap:
         self.auth = HTTPBasicAuth(user, password)
 
     def get(self, path, params=None):
-        r = requests.get(self.base + path, auth=self.auth,
-                         params=params or {}, verify=False, timeout=30)
+        r = requests.get(
+            self.base + path,
+            auth=self.auth,
+            params=params or {},
+            verify=True,
+            timeout=30,
+        )
         r.raise_for_status()
         return r.json()
 
@@ -53,8 +63,9 @@ def main():
         sys.exit(1)
 
     api = Ontap(args.cluster, args.user, password)
-    vols = api.get("/storage/volumes",
-                   {"fields": "name,svm.name,size,space,state,type"})
+    vols = api.get(
+        "/storage/volumes", {"fields": "name,svm.name,size,space,state,type"}
+    )
 
     rows = []
     for v in vols.get("records", []):
@@ -62,19 +73,31 @@ def main():
         size = v.get("size", 0) or 0
         used = space.get("used", 0) or 0
         pct = (used / size * 100) if size else 0
-        rows.append({
-            "svm": v.get("svm", {}).get("name", ""),
-            "volume": v.get("name", ""),
-            "type": v.get("type", ""),
-            "state": v.get("state", ""),
-            "size_gb": f"{size/1e9:.1f}",
-            "used_gb": f"{used/1e9:.1f}",
-            "used_pct": f"{pct:.1f}",
-        })
+        rows.append(
+            {
+                "svm": csv_safe(v.get("svm", {}).get("name", "")),
+                "volume": csv_safe(v.get("name", "")),
+                "type": csv_safe(v.get("type", "")),
+                "state": csv_safe(v.get("state", "")),
+                "size_gb": f"{size / 1e9:.1f}",
+                "used_gb": f"{used / 1e9:.1f}",
+                "used_pct": f"{pct:.1f}",
+            }
+        )
 
     with open(args.output, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["svm", "volume", "type", "state",
-                                          "size_gb", "used_gb", "used_pct"])
+        w = csv.DictWriter(
+            f,
+            fieldnames=[
+                "svm",
+                "volume",
+                "type",
+                "state",
+                "size_gb",
+                "used_gb",
+                "used_pct",
+            ],
+        )
         w.writeheader()
         w.writerows(sorted(rows, key=lambda r: float(r["used_pct"]), reverse=True))
 
